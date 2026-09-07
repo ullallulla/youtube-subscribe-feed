@@ -34,7 +34,11 @@ export const styles = `
   article { min-width:0; }
   a { text-decoration:none; }
   img { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; background:#222; }
-  h3 { font-size:16px; line-height:1.4; margin:10px 0 6px; }
+  .card-details { display:flex; align-items:flex-start; gap:8px; margin-top:10px; }
+  .card-text { flex:1; min-width:0; }
+  h3 { font-size:16px; line-height:1.4; margin:0 0 6px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+  .category-menu-button { display:flex; align-items:center; justify-content:center; flex:0 0 32px; width:32px; height:40px; padding:0; margin-top:-6px; border:0; border-radius:50%; background:transparent; }
+  .category-menu-button:hover, .category-menu-button:active { background:var(--groups-button); }
   .creator { margin:0 0 10px; }
   .creator:has(+ .metadata) { margin-bottom:4px; }
   .metadata { margin:0 0 10px; line-height:1.4; }

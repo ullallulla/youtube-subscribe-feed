@@ -24,7 +24,7 @@ Load the extension in Chrome:
 3. Select **Load unpacked** and choose this project's `dist` directory.
 4. Open or refresh YouTube's Subscriptions page.
 
-Initially, videos appear under **Other**. Click **Categories** on a video, select one or more categories for its creator, and click **Save**. Every loaded video from that creator appears in the selected sections. Future videos use the same saved assignments. Clear all selections to return the creator to Other.
+Initially, videos appear under **Other**. Click the **three-dot button** beside a video title, select one or more categories for its creator, and click **Save**. Every loaded video from that creator appears in the selected sections. Future videos use the same saved assignments. Clear all selections to return the creator to Other.
 
 Use **Show original feed** to restore YouTube's native cards whenever needed.
 

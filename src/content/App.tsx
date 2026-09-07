@@ -96,21 +96,32 @@ export function App({ videos, settings, original, onToggle, onSave }: AppProps) 
     </header>
     <p className="hint">{original
       ? 'You are viewing the original YouTube feed.'
-      : 'Choose Categories on a video to organize its creator. Sections include videos loaded so far, in feed order. Scroll down to load more.'}</p>
+      : 'Use the three-dot button on a video to organize its creator. Sections include videos loaded so far, in feed order. Scroll down to load more.'}</p>
     {!original && [...settings.categories, { id: 'other', name: 'Other' }].map(category => {
       const items = groups.get(category.id)!;
       return <section key={category.id}>
         <h2>{category.name} · {items.length}</h2>
         {items.length ? <div className="grid">{items.map(video => (
           <article key={video.id}>
-            <a href={video.url}>
+            <a href={video.url} aria-label={video.title}>
               <img src={video.thumbnail} alt="" loading="lazy" />
-              <h3>{video.title}</h3>
             </a>
-            <p className="creator">{video.creatorName}</p>
-            {!!video.metadata?.length && <p className="metadata">{video.metadata.join(' · ')}</p>}
-            {video.creatorId && <button aria-label={`Choose categories for ${video.creatorName}`}
-              onClick={event => setEditor({ video, trigger: event.currentTarget })}>Categories</button>}
+            <div className="card-details">
+              <div className="card-text">
+                <h3><a href={video.url} title={video.title}>{video.title}</a></h3>
+                <p className="creator">{video.creatorName}</p>
+                {!!video.metadata?.length && <p className="metadata">{video.metadata.join(' · ')}</p>}
+              </div>
+              {video.creatorId && <button className="category-menu-button" type="button"
+                aria-label={`Choose categories for ${video.creatorName}`} aria-haspopup="dialog" title="Choose categories"
+                onClick={event => setEditor({ video, trigger: event.currentTarget })}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>}
+            </div>
           </article>
         ))}</div> : <p className="empty">No matching videos loaded yet.</p>}
       </section>;
