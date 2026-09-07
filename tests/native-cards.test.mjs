@@ -90,7 +90,7 @@ test('keeps native Shorts shelves together and routes standalone Shorts before O
     const settings = { version: 2, categories: [{ id: 'gaming', name: 'Gaming' }], creatorAssignments: { '@alpha': 'gaming' } };
     manager.sync(settings);
     const sections = [...manager.container.children];
-    assert.deepEqual(sections.map(node => node.querySelector('h2').textContent), ['Gaming · 1', 'Shorts', 'Other · 0']);
+    assert.deepEqual(sections.map(node => node.querySelector('h2').textContent), ['Gaming', 'Shorts', 'Other']);
     assert.equal(sections[1].querySelector('#shelf'), shelfNode);
     assert.equal(shelfNode.querySelector('#inside'), inside);
     assert.equal(sections[1].querySelector('#standalone'), standalone);

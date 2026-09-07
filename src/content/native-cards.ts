@@ -111,7 +111,7 @@ export class NativeCards {
     for (const category of categories) {
       const section = this.sections.get(category.id)!;
       const count = counts.get(category.id)!;
-      const title = category.id === SHORTS_SECTION_ID ? category.name : `${category.name} · ${count}`;
+      const title = category.name;
       if (section.heading.textContent !== title) section.heading.textContent = title;
       section.empty.hidden = count > 0;
     }
