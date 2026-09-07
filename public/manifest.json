@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YouTube Subscription Groups",
   "version": "0.1.0",
-  "description": "Organize your subscriptions by creator. Initial development scaffold.",
+  "description": "Group YouTube subscriptions into Reacts, Gaming, Tech, and Other with saved creator assignments.",
   "permissions": ["storage"],
   "content_scripts": [
     {
