@@ -10,7 +10,7 @@ The first prototype implements stacked category sections, creator assignment che
 
 ## Development
 
-Install Node.js 22 or newer and pnpm, then run:
+Install Node.js 22.12 or newer and pnpm, then run:
 
 ```sh
 pnpm install
@@ -29,22 +29,28 @@ Initially, videos appear under **Other**. Click **Categories** on a video, selec
 Use **Show original feed** to restore YouTube's native cards whenever needed.
 
 ```sh
-pnpm run dev        # Watch and rebuild TypeScript source
+pnpm run dev        # Watch and rebuild the extension with Vite
 pnpm run typecheck  # Check TypeScript without building
-pnpm test           # Check grouping, identity, and settings behavior
+pnpm test           # Check grouping, settings, and React UI behavior
 pnpm run build      # Type-check and build the extension
 ```
 
 After changes, reload the extension in Chrome and refresh YouTube. Restart the watcher when changing files under `public/`. Watch mode does not run type-checking.
+
+Vite builds a standalone `dist/content.js` and copies `public/manifest.json` into `dist/`. `pnpm run dev` uses Vite's build watcher; it does not start a web server or provide React Fast Refresh inside YouTube. React is bundled locally, and styles remain inside the Shadow DOM. No additional Chrome permissions are needed.
 
 Use pnpm for dependency management and commit the generated `pnpm-lock.yaml` after the first install.
 
 ## Project structure
 
 - `public/manifest.json` — Chrome Manifest V3 configuration.
-- `src/content/` — YouTube page integration.
+- `src/content/index.ts` — YouTube navigation, feed observation, storage, and React root lifecycle.
+- `src/content/App.tsx` — React feed sections and creator category dialog.
+- `src/content/extract.ts` — YouTube card extraction.
+- `src/content/styles.ts` — Styles isolated inside the Shadow DOM, including dark mode.
 - `src/shared/categories.ts` — Category types and prototype defaults.
-- `scripts/build.mjs` — Bundles the content script and copies extension assets to `dist/`.
+- `vite.config.ts` — Vite/React configuration producing a single classic content script.
+- `tests/` — Grouping tests and React interaction checks. esbuild is retained only for test bundling.
 - `PLAN.md` — Product behavior and implementation milestones.
 
 The content script is registered on YouTube pages to support in-site navigation; the grouped interface acts only on Subscriptions. Assignments use [Chrome extension local storage](https://developer.chrome.com/docs/extensions/reference/api/storage).

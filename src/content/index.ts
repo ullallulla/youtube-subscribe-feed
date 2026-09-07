@@ -1,5 +1,8 @@
 import { createDefaultSettings, type Settings } from '../shared/categories';
-import { groupVideos, parseSettings, type Video } from '../shared/feed';
+import { parseSettings, type Video } from '../shared/feed';
+import { createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { App } from './App';
 import { extractVideos } from './extract';
 import { styles } from './styles';
 
@@ -10,7 +13,7 @@ let ready = false;
 let original = false;
 let feed: HTMLElement | null = null;
 let host: HTMLElement | null = null;
-let shadow: ShadowRoot | null = null;
+let root: Root | null = null;
 let lastSignature = '';
 let videos: Video[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -19,126 +22,40 @@ const pageStyle = document.createElement('style');
 pageStyle.textContent = `[${HIDDEN}] { display: none !important; }`;
 document.head.append(pageStyle);
 
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
 function restoreCards(): void {
   document.querySelectorAll(`[${HIDDEN}]`).forEach(card => card.removeAttribute(HIDDEN));
 }
 
 function unmount(): void {
   restoreCards();
+  root?.unmount();
   host?.remove();
   host = null;
-  shadow = null;
+  root = null;
   feed = null;
   videos = [];
   lastSignature = '';
 }
 
-function editCreator(video: Video, trigger: HTMLButtonElement): void {
-  if (!shadow || !video.creatorId) return;
-  const creatorId = video.creatorId;
-  const dialog = element('dialog');
-  const heading = element('h2', `Categories for ${video.creatorName}`);
-  heading.id = 'category-dialog-title';
-  dialog.setAttribute('aria-labelledby', heading.id);
-  dialog.append(heading, element('p', 'All videos from this creator will appear in each selected category.'));
-  const fieldset = element('fieldset');
-  fieldset.append(element('legend', 'Choose categories'));
-  const selected = new Set(settings.creatorAssignments[creatorId] ?? []);
-  for (const category of settings.categories) {
-    const label = element('label');
-    const input = element('input');
-    input.type = 'checkbox';
-    input.checked = selected.has(category.id);
-    input.addEventListener('change', () => input.checked ? selected.add(category.id) : selected.delete(category.id));
-    label.append(input, document.createTextNode(category.name));
-    fieldset.append(label);
-  }
-  const error = element('p');
-  error.className = 'error';
-  error.setAttribute('role', 'alert');
-  const actions = element('div');
-  actions.className = 'actions';
-  const cancel = element('button', 'Cancel');
-  cancel.addEventListener('click', () => dialog.close());
-  const save = element('button', 'Save');
-  save.addEventListener('click', async () => {
-    save.disabled = true;
-    const next: Settings = { ...settings, creatorAssignments: { ...settings.creatorAssignments, [creatorId]: [...selected] } };
-    try {
-      await chrome.storage.local.set({ [STORAGE_KEY]: next });
-      settings = next;
-      dialog.close();
-      dialog.remove();
-      lastSignature = '';
-      refresh();
-      shadow?.querySelector<HTMLButtonElement>('header button')?.focus();
-    } catch {
-      error.textContent = 'Could not save. Try again, or reload this page if the extension was updated.';
-      save.disabled = false;
-    }
-  });
-  actions.append(cancel, save);
-  dialog.append(fieldset, element('p', 'Leave all unchecked to place this creator in Other.'), error, actions);
-  dialog.addEventListener('close', () => { dialog.remove(); if (trigger.isConnected) trigger.focus(); schedule(); });
-  shadow.append(dialog);
-  dialog.showModal();
+async function saveCreator(creatorId: string, categoryIds: string[]): Promise<void> {
+  const next: Settings = {
+    ...settings,
+    creatorAssignments: { ...settings.creatorAssignments, [creatorId]: categoryIds },
+  };
+  await chrome.storage.local.set({ [STORAGE_KEY]: next });
+  settings = next;
+  lastSignature = '';
+  refresh();
 }
 
 function render(): void {
-  if (!shadow) return;
-  shadow.replaceChildren();
-  const style = element('style', styles);
-  const header = element('header');
-  const toggle = element('button', original ? 'Show grouped feed' : 'Show original feed');
-  toggle.addEventListener('click', () => { original = !original; lastSignature = ''; refresh(); });
-  header.append(element('h1', 'Your subscription groups'), toggle);
-  const hint = element('p', original
-    ? 'You are viewing the original YouTube feed.'
-    : 'Choose Categories on a video to organize its creator. Sections include videos loaded so far, in feed order. Scroll down to load more.');
-  hint.className = 'hint';
-  shadow.append(style, header, hint);
-  if (original) return;
-  const groups = groupVideos(videos, settings);
-  for (const category of [...settings.categories, { id: 'other', name: 'Other' }]) {
-    const section = element('section');
-    const items = groups.get(category.id)!;
-    section.append(element('h2', `${category.name} · ${items.length}`));
-    const grid = element('div');
-    grid.className = 'grid';
-    for (const video of items) {
-      const card = element('article');
-      const link = element('a');
-      link.href = video.url;
-      const img = element('img');
-      img.src = video.thumbnail;
-      img.alt = '';
-      img.loading = 'lazy';
-      link.append(img, element('h3', video.title));
-      const creator = element('p', video.creatorName);
-      creator.className = 'creator';
-      card.append(link, creator);
-      if (video.creatorId) {
-        const button = element('button', 'Categories');
-        button.setAttribute('aria-label', `Choose categories for ${video.creatorName}`);
-        button.addEventListener('click', () => editCreator(video, button));
-        card.append(button);
-      }
-      grid.append(card);
-    }
-    if (items.length) section.append(grid);
-    else {
-      const empty = element('p', 'No matching videos loaded yet.');
-      empty.className = 'empty';
-      section.append(empty);
-    }
-    shadow.append(section);
-  }
+  root?.render(createElement(App, {
+    videos,
+    settings,
+    original,
+    onToggle: () => { original = !original; lastSignature = ''; refresh(); },
+    onSave: saveCreator,
+  }));
 }
 
 function refresh(): void {
@@ -151,13 +68,16 @@ function refresh(): void {
   if (feed !== current || !host?.isConnected) {
     unmount();
     feed = current;
-    host = element('div');
+    host = document.createElement('div');
     host.id = 'youtube-subscription-groups';
-    shadow = host.attachShadow({ mode: 'open' });
+    const shadow = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = styles;
+    const container = document.createElement('div');
+    shadow.append(style, container);
+    root = createRoot(container);
     grid.before(host);
   }
-  // Do not interrupt someone editing assignments as new videos arrive.
-  if (shadow?.querySelector('dialog[open]')) return;
   const extracted = extractVideos(grid);
   videos = extracted.videos;
   if (original) restoreCards();
