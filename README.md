@@ -61,7 +61,7 @@ The content script is registered on YouTube pages to support in-site navigation;
 - Native continuation controls remain below the sections. Live YouTube infinite scrolling still needs browser verification; if loading stalls, switch to the original feed, scroll to load more, then switch back.
 - Creator identity uses the channel URL exposed by the card, often a handle. Handle changes or a switch between handle and channel-ID URLs can require reassignment.
 - Unrecognized card layouts stay in the native feed. Videos with unreadable creator information appear in Other without an assignment button.
-- Custom cards currently include thumbnails, titles, creator names, and category controls. Native hover previews and video action menus are available through the original-feed toggle.
+- Custom cards include thumbnails, titles, creator names, view counts and upload ages when supplied by YouTube, and category controls. Metadata preserves YouTube's language and live/upcoming labels. Native hover previews and video action menus are available through the original-feed toggle.
 - Settings are shared within the Chrome profile, not separated by signed-in YouTube account. Avoid editing assignments simultaneously in multiple tabs.
 
 After reloading the extension and refreshing YouTube, check that a creator assigned to Reacts and Tech appears in both sections and leaves Other. Refresh to check persistence, clear assignments to check Other, then scroll for older videos and navigate away and back. Also check keyboard controls and YouTube's light/dark themes. Automated tests do not replace these live browser checks.

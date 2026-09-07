@@ -26,7 +26,7 @@ export const styles = `
   header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
   header h1 { font-size:22px; margin:0 auto 0 0; }
   h1, h2, h3, a { color:var(--groups-text); }
-  .hint, .creator, .empty { color:var(--groups-secondary); }
+  .hint, .creator, .metadata, .empty { color:var(--groups-secondary); }
   .hint { line-height:1.5; }
   section { margin:32px 0; }
   h2 { font-size:24px; margin:0 0 20px; }
@@ -36,6 +36,8 @@ export const styles = `
   img { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; background:#222; }
   h3 { font-size:16px; line-height:1.4; margin:10px 0 6px; }
   .creator { margin:0 0 10px; }
+  .creator:has(+ .metadata) { margin-bottom:4px; }
+  .metadata { margin:0 0 10px; line-height:1.4; }
   .empty { border:1px dashed #888; border-radius:12px; padding:20px; }
   dialog { width:min(420px,calc(100vw - 32px)); border:1px solid var(--groups-border); border-radius:16px; padding:24px; color:var(--groups-text); background:var(--groups-surface); }
   dialog::backdrop { background:#0008; }

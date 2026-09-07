@@ -108,6 +108,7 @@ export function App({ videos, settings, original, onToggle, onSave }: AppProps) 
               <h3>{video.title}</h3>
             </a>
             <p className="creator">{video.creatorName}</p>
+            {!!video.metadata?.length && <p className="metadata">{video.metadata.join(' · ')}</p>}
             {video.creatorId && <button aria-label={`Choose categories for ${video.creatorName}`}
               onClick={event => setEditor({ video, trigger: event.currentTarget })}>Categories</button>}
           </article>

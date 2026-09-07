@@ -7,6 +7,8 @@ export interface Video {
   thumbnail: string;
   creatorId: string | null;
   creatorName: string;
+  /** YouTube's localized view count and publication age/status, when available. */
+  metadata?: string[];
 }
 
 export function creatorIdentity(href: string): string | null {

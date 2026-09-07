@@ -51,7 +51,7 @@ test('React preserves dialog choices across feed updates, saves, and displays fa
     version: 1, categories: [{ id: 'reacts', name: 'Reacts' }, { id: 'gaming', name: 'Gaming' }, { id: 'tech', name: 'Tech' }],
     creatorAssignments: {},
   };
-  const video = { id: 'a', title: 'A video', creatorId: '@creator', creatorName: 'Creator', url: '/watch?v=a', thumbnail: 'https://i.ytimg.com/vi/a/hqdefault.jpg' };
+  const video = { id: 'a', title: 'A video', creatorId: '@creator', creatorName: 'Creator', url: '/watch?v=a', thumbnail: 'https://i.ytimg.com/vi/a/hqdefault.jpg', metadata: ['123K views', '2 days ago'] };
   let saved;
   let toggled = false;
   let rejectSave = false;
@@ -68,9 +68,11 @@ test('React preserves dialog choices across feed updates, saves, and displays fa
   try {
     await act(async () => root.render(createElement(App, props)));
     assert.deepEqual([...shadow.querySelectorAll('section h2')].map(node => node.textContent), ['Reacts · 0', 'Gaming · 0', 'Tech · 0', 'Other · 1']);
+    assert.equal(shadow.querySelector('.metadata').textContent, '123K views · 2 days ago');
     await click(shadow.querySelector('article button'));
     await click(shadow.querySelector('input'));
-    await act(async () => root.render(createElement(App, { ...props, videos: [video, { ...video, id: 'b' }] })));
+    await act(async () => root.render(createElement(App, { ...props, videos: [video, { ...video, id: 'b', metadata: [] }] })));
+    assert.equal(shadow.querySelectorAll('.metadata').length, 1);
     assert.equal(shadow.querySelector('input').checked, true);
     assert.ok(shadow.querySelector('dialog[open]'));
     await click(saveButton());

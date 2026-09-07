@@ -99,7 +99,7 @@ function schedule(): void {
 // Shadow DOM rendering does not trigger this observer. YouTube's native
 // continuation controls remain beneath the grouped sections to load more videos.
 const observer = new MutationObserver(schedule);
-observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'src', 'hidden'] });
+observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['href', 'src', 'hidden'] });
 document.addEventListener('yt-navigate-finish', schedule);
 window.addEventListener('popstate', schedule);
 chrome.storage.onChanged.addListener((changes, area) => {
