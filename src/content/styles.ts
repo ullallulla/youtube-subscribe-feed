@@ -30,6 +30,7 @@ export const styles = `
 `;
 
 export const nativeStyles = `
+  [data-native-group-excluded] { display:none !important; }
   [data-native-groups] { display:block; width:100%; min-width:0; font:14px Roboto,Arial,sans-serif; color:#0f0f0f; }
   html[dark] [data-native-groups] { color:#fff; }
   [data-native-groups] > section { margin:24px 0 36px; }

@@ -117,3 +117,60 @@ test('keeps native Shorts shelves together and routes standalone Shorts before O
     }
   }
 });
+
+
+test('ignores Most relevant shelves by source, including unique videos and late headings', () => {
+  const recommended = markup('recommended-a', 'alpha').replace('watch?v=recommended-a', 'watch?v=a');
+  const dom = new JSDOM(`<ytd-rich-grid-renderer><div id="contents">
+    <ytd-rich-section-renderer id="relevant"><ytd-rich-shelf-renderer>
+      <h2 id="title">Osuvimmat</h2>${recommended}${markup('recommended-only', 'alpha')}
+    </ytd-rich-shelf-renderer></ytd-rich-section-renderer>
+    ${markup('a', 'alpha')}
+    <ytd-rich-section-renderer id="late"><ytd-rich-shelf-renderer><h2 id="title"></h2>${markup('late-card', 'alpha')}</ytd-rich-shelf-renderer></ytd-rich-section-renderer>
+    <ytd-reel-shelf-renderer id="reel"><h2>Most relevant</h2>${markup('reel-recommendation', 'alpha')}</ytd-reel-shelf-renderer>
+    <ytd-continuation-item-renderer></ytd-continuation-item-renderer>
+  </div></ytd-rich-grid-renderer>`, { url: 'https://www.youtube.com/feed/subscriptions' });
+  const previous = new Map();
+  for (const [key, value] of Object.entries({ document: dom.window.document, location: dom.window.location, Node: dom.window.Node })) {
+    previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+  }
+  let manager;
+  try {
+    const feed = document.querySelector('ytd-rich-grid-renderer');
+    const relevant = document.querySelector('#relevant');
+    const late = document.querySelector('#late');
+    const chronological = document.querySelector('#a');
+    const settings = { version: 2, categories: [{ id: 'reacts', name: 'Reacts' }], creatorAssignments: { '@alpha': 'reacts' } };
+    manager = new NativeCards(feed, () => {});
+    manager.sync(settings);
+    const visibleIds = () => [...manager.container.querySelectorAll('ytd-rich-item-renderer')].map(node => node.id);
+    assert.deepEqual(visibleIds(), ['a', 'late-card']);
+    assert.equal(manager.container.querySelector('#a'), chronological);
+    assert.ok(relevant.hasAttribute('data-native-group-excluded'));
+    assert.ok(relevant.querySelector('#recommended-a'));
+    assert.ok(relevant.querySelector('#recommended-only'));
+    assert.equal(manager.container.querySelector('#reel'), null);
+    assert.ok(document.querySelector('#reel').hasAttribute('data-native-group-excluded'));
+    // Return already-moved cards when the asynchronously loaded title identifies a shelf.
+    late.querySelector('h2').textContent = ' Most relevant ';
+    manager.sync(settings);
+    assert.deepEqual(visibleIds(), ['a']);
+    assert.ok(late.querySelector('#late-card'));
+    assert.ok(late.hasAttribute('data-native-group-excluded'));
+    relevant.querySelector('ytd-rich-shelf-renderer').insertAdjacentHTML('beforeend', markup('more-recommended', 'alpha'));
+    manager.sync(settings);
+    assert.deepEqual(visibleIds(), ['a']);
+    manager.restore();
+    assert.equal(document.querySelector('[data-native-group-excluded]'), null);
+    assert.equal(document.querySelector('#a'), chronological);
+    assert.deepEqual([...feed.querySelector('#contents').children].map(node => node.id || node.tagName.toLowerCase()), ['relevant', 'a', 'late', 'reel', 'ytd-continuation-item-renderer']);
+  } finally {
+    manager?.restore();
+    dom.window.close();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
+});

@@ -1,6 +1,6 @@
 import { SHORTS_SECTION_ID, type Settings } from '../shared/categories';
 import { feedSections, videoSection, type Video } from '../shared/feed';
-import { extractShortsShelves, extractVideos } from './extract';
+import { extractRelevantShelves, extractShortsShelves, extractVideos } from './extract';
 
 interface CardRecord {
   card: HTMLElement;
@@ -21,6 +21,7 @@ function move(parent: HTMLElement, node: HTMLElement, before: ChildNode | null):
 export class NativeCards {
   private records = new Map<HTMLElement, CardRecord>();
   private sections = new Map<string, { section: HTMLElement; heading: HTMLElement; grid: HTMLElement; empty: HTMLElement }>();
+  private excludedShelves = new Set<HTMLElement>();
   readonly container: HTMLDivElement;
 
   constructor(private feed: HTMLElement, private edit: (video: Video, trigger: HTMLButtonElement) => void) {
@@ -32,6 +33,13 @@ export class NativeCards {
   }
 
   sync(settings: Settings): void {
+    const excluded = extractRelevantShelves(this.feed);
+    for (const shelf of this.excludedShelves) {
+      if (!excluded.includes(shelf)) shelf.removeAttribute('data-native-group-excluded');
+    }
+    this.excludedShelves = new Set(excluded);
+    for (const shelf of excluded) shelf.setAttribute('data-native-group-excluded', '');
+
     // Source refreshes can remove placeholders. Drop those cards rather than
     // resurrecting a previous feed batch or restoring into detached containers.
     for (const [card, record] of this.records) {
@@ -41,9 +49,19 @@ export class NativeCards {
         this.records.delete(card);
       }
     }
-    const { videos, cards } = extractVideos(this.feed);
+    // A shelf heading may arrive after its cards. Use the original-position
+    // markers to return those cards before excluding the newly identified shelf.
+    for (const [card, record] of this.records) {
+      if (excluded.some(shelf => shelf.contains(record.marker) || shelf.contains(card))) {
+        move(record.marker.parentElement!, card, record.marker);
+        record.marker.remove();
+        record.wrapper.remove();
+        this.records.delete(card);
+      }
+    }
+    const { videos, cards } = extractVideos(this.feed, excluded);
     const items = cards.map((card, index) => ({ card, video: videos[index] as Video | null }));
-    items.push(...extractShortsShelves(this.feed).map(card => ({ card, video: null })));
+    items.push(...extractShortsShelves(this.feed, excluded).map(card => ({ card, video: null })));
     items.forEach(({ card, video }) => {
       const existing = this.records.get(card);
       if (existing) { existing.video = video; return; }
@@ -131,5 +149,7 @@ export class NativeCards {
     this.records.clear();
     this.sections.clear();
     this.container.remove();
+    for (const shelf of this.excludedShelves) shelf.removeAttribute('data-native-group-excluded');
+    this.excludedShelves.clear();
   }
 }

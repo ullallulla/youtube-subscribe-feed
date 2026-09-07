@@ -61,6 +61,7 @@ The content script is registered on YouTube pages to support in-site navigation;
 ## Prototype limitations and browser checks
 
 - Only loaded videos are organized, in their source feed order. Choose YouTube's newest-first feed ordering when available.
+- Shelves headed **Most relevant** or **Osuvimmat** are excluded from grouped view, including their unique videos. The original-feed toggle restores these shelves. Filtering uses shelf headings, not video IDs.
 - Native continuation controls remain below the sections. Live YouTube infinite scrolling still needs browser verification; if loading stalls, switch to the original feed, scroll to load more, then switch back.
 - Creator identity uses the channel URL exposed by the card, often a handle. Handle changes or a switch between handle and channel-ID URLs can require reassignment.
 - Unrecognized card layouts stay in the native feed. Videos with unreadable creator information appear in Other without an assignment button.

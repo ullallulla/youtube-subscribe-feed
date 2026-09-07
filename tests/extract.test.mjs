@@ -77,3 +77,7 @@ test('supports wiz metadata classes and a live count beside the creator', () => 
     <span class="yt-content-metadata-view-model-wiz__metadata-text">84 watching</span>
   </div>`), ['84 watching']);
 });
+
+test('a video title named Most relevant is not mistaken for a shelf heading', () => {
+  assert.deepEqual(extract('<h2 id="title">Most relevant</h2><div id="metadata-line"><span class="inline-metadata-item">42 views</span></div>'), ['42 views']);
+});

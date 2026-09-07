@@ -4,9 +4,22 @@ import { creatorIdentity, type Video } from '../shared/feed';
 const CARD_SELECTOR = 'ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-video-renderer, yt-lockup-view-model, ytd-reel-item-renderer, yt-shorts-lockup-view-model, ytm-shorts-lockup-view-model';
 const SHORTS_SHELF_SELECTOR = 'ytd-rich-shelf-renderer[is-shorts], ytd-reel-shelf-renderer';
 
+/** Match shelf headings, never video titles or arbitrary text within a card. */
+export function extractRelevantShelves(feed: Element): HTMLElement[] {
+  const candidates = Array.from(feed.querySelectorAll<HTMLElement>(
+    'ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-reel-shelf-renderer, ytd-shelf-renderer, ytm-rich-shelf-renderer',
+  )).filter(shelf => Array.from(shelf.querySelectorAll('#title, #title-text, h2, [role="heading"]')).some(heading => {
+    if (heading.closest(CARD_SELECTOR)) return false;
+    const title = heading.textContent?.replace(/\s+/g, ' ').trim().toLowerCase();
+    return title === 'most relevant' || title === 'osuvimmat';
+  }));
+  return candidates.filter(shelf => !candidates.some(parent => parent !== shelf && parent.contains(shelf)));
+}
+
 /** Move the whole shelf so its carousel, controls and vertical cards stay intact. */
-export function extractShortsShelves(feed: Element): HTMLElement[] {
+export function extractShortsShelves(feed: Element, excluded = extractRelevantShelves(feed)): HTMLElement[] {
   return [...new Set(Array.from(feed.querySelectorAll<HTMLElement>(SHORTS_SHELF_SELECTOR))
+    .filter(shelf => !excluded.some(section => section.contains(shelf)))
     .map(shelf => shelf.closest<HTMLElement>('ytd-rich-section-renderer') ?? shelf))];
 }
 const METADATA_ROW_SELECTOR = [
@@ -40,10 +53,11 @@ function extractMetadata(card: Element): string[] {
   return [...new Set(metadata)];
 }
 
-export function extractVideos(feed: Element): { videos: Video[]; cards: HTMLElement[] } {
+export function extractVideos(feed: Element, excluded = extractRelevantShelves(feed)): { videos: Video[]; cards: HTMLElement[] } {
   const videos: Video[] = [];
   const cards: HTMLElement[] = [];
   for (const card of Array.from(feed.querySelectorAll<HTMLElement>(CARD_SELECTOR))) {
+    if (excluded.some(section => section.contains(card))) continue;
     // Shelves are moved as one native element, never split into individual cards.
     if (card.closest(SHORTS_SHELF_SELECTOR) || card.querySelector(SHORTS_SHELF_SELECTOR)) continue;
     // Only move the outermost renderer; nested lockups belong to that card.
