@@ -15,6 +15,9 @@ let grid: HTMLElement | null = null;
 let host: HTMLElement | null = null;
 let root: Root | null = null;
 let nativeCards: NativeCards | null = null;
+// View state belongs to the page visit, not YouTube's replaceable DOM nodes.
+const expandedSections = new Set<string>();
+const visibleLimits = new Map<string, number>();
 let editor: Editor | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 const pageStyle = document.createElement('style');
@@ -61,7 +64,12 @@ function render(): void {
 
 function updateFeed(): void {
   if (!ready) return;
-  if (location.pathname !== '/feed/subscriptions') { unmount(); return; }
+  if (location.pathname !== '/feed/subscriptions') {
+    expandedSections.clear();
+    visibleLimits.clear();
+    unmount();
+    return;
+  }
   const current = document.querySelector<HTMLElement>('ytd-browse[page-subtype="subscriptions"]:not([hidden])');
   const currentGrid = current?.querySelector<HTMLElement>('ytd-rich-grid-renderer, ytd-section-list-renderer');
   if (!current || !currentGrid) { unmount(); return; }
@@ -83,18 +91,18 @@ function updateFeed(): void {
     nativeCards?.restore();
     nativeCards = null;
   } else {
-    if (nativeCards && !nativeCards.container.isConnected) {
+    if (nativeCards && !nativeCards.isAttached()) {
       nativeCards.restore();
       nativeCards = null;
     }
-    nativeCards ??= new NativeCards(currentGrid, (video, trigger) => { editor = { video, trigger }; render(); });
+    nativeCards ??= new NativeCards(currentGrid, (video, trigger) => { editor = { video, trigger }; render(); }, expandedSections, visibleLimits);
     nativeCards.sync(settings);
   }
   render();
 }
 
 function refresh(): void {
-  // Ignore our own moves, but continue observing YouTube's later updates.
+  // Ignore our own layout updates, but continue observing YouTube's later updates.
   observer.disconnect();
   try { updateFeed(); }
   catch (error) {

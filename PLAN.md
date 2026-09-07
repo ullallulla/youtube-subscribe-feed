@@ -24,12 +24,13 @@ Each section displays the newest videos first. The number of columns adapts to t
 - Shorts from all creators go to a fixed Shorts section immediately before Other. Shorts is excluded from the category picker.
 - Preserve native Shorts shelves and standalone vertical cards, including restoration to the original feed.
 - Reuse original YouTube cards to retain native menus, metadata, watched progress, and hover behavior where supported.
-- Move each original card into one section; never clone it across categories.
+- Arrange each original card visually in one section using CSS; retain its native DOM parent and never clone it across categories.
 - Other always appears last and contains videos from creators with no category assignments.
 - Assigning a creator to their first category removes their videos from Other.
 - Selecting Other removes the creator’s category assignment.
 - Users can choose the order of custom categories.
 - The stacked sections are the main interface; selecting filters is not required to see the organized feed.
+- All sections start collapsed. Clicking a section title toggles its videos; each section can be opened independently, including Shorts and Other.
 
 ## Implementation plan
 
@@ -46,9 +47,9 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 - Identify video cards, video identity, creator identity, and feed order reliably.
 - Prefer stable channel identifiers over creator display names; verify what identifiers the page exposes before choosing the final mapping approach.
-- Move original card nodes within YouTube’s feed ancestry, keeping placeholders for restoration.
+- Preserve native card ancestry and use CSS grid ordering with flattened layout wrappers to create sections.
 - Keep native cards outside React ownership and Shadow DOM; React owns the toolbar and category dialog.
-- Verify native hover playback, menus, watched progress, and loading after moves.
+- Verify native hover playback, menus, watched progress, and loading with the grouped layout.
 - Preserve working video links and playback behavior.
 - Verify that loading older videos continues to work after reorganizing the page.
 - Handle missing creator information without guessing an assignment or losing the video.
@@ -61,6 +62,7 @@ Each section displays the newest videos first. The number of columns adapts to t
 - Preserve newest-first ordering within each category.
 - Keep each original card in one category and preserve source order.
 - Show a clear empty state when a category has no matching loaded videos.
+- Initially show up to 10 loaded videos per expanded category. Show more reveals up to another 10 loaded videos, or requests one feed batch if all matching loaded videos are visible. Keep the button visible for partial batches and disable it if loading is pending or unavailable. Show fewer returns to the first 10 without collapsing the section or removing native cards. Keep these limits during feed updates; preserve intact Shorts shelves outside this limit.
 
 ### 4. Add creator assignment controls
 
@@ -81,8 +83,8 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 ### 6. Handle loading and navigation
 
-- Categorize newly loaded videos as the user scrolls.
-- Keep a usable way to load older videos after cards have been grouped.
+- Categorize newly loaded videos while preserving expanded sections.
+- Use an explicit Load more videos button; opening a section must not expose continuation controls. Hide those controls again after a feed update or a bounded timeout.
 - Restore controls and the grouped layout when returning to Subscriptions.
 - Avoid duplicate controls, repeated event handlers, and unnecessary page processing.
 - Keep the extension's grouped layout scoped to Subscriptions.

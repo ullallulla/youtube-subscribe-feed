@@ -77,7 +77,7 @@ export function App({ settings, original, editor, onToggle, onDismiss, onSave }:
     </header>
     <p className="hint">{original
       ? 'You are viewing the original YouTube feed.'
-      : 'Use Choose category below a video to organize its creator. YouTube’s three-dot menu keeps its usual actions. Scroll down to load more.'}</p>
+      : 'Click a section title to show its videos. Use Choose category below a video to organize its creator, and Load more videos at the bottom for older uploads.'}</p>
     {editor && <CategoryDialog key={editor.video.creatorId} video={editor.video} settings={settings} onSave={onSave} onDismiss={onDismiss} />}
   </>;
 }
