@@ -37,6 +37,8 @@ export function extractVideos(feed: Element): { videos: Video[]; cards: HTMLElem
   const videos: Video[] = [];
   const cards: HTMLElement[] = [];
   for (const card of Array.from(feed.querySelectorAll<HTMLElement>(CARD_SELECTOR))) {
+    // Only move the outermost renderer; nested lockups belong to that card.
+    if (card.parentElement?.closest(CARD_SELECTOR)) continue;
     const links = Array.from(card.querySelectorAll<HTMLAnchorElement>('a[href]'));
     const watch = links.find(link => /\/(watch\?|shorts\/)/.test(link.getAttribute('href') ?? ''));
     if (!watch) continue;

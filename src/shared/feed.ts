@@ -23,8 +23,8 @@ export function creatorIdentity(href: string): string | null {
 export function parseSettings(value: unknown): Settings {
   if (value === undefined) return createDefaultSettings();
   if (!value || typeof value !== 'object') throw new Error('Invalid saved settings.');
-  const data = value as Partial<Settings>;
-  if (data.version !== 1 || !Array.isArray(data.categories) || !data.creatorAssignments ||
+  const data = value as { version?: number; categories?: Settings["categories"]; creatorAssignments?: Record<string, unknown> };
+  if ((data.version !== 1 && data.version !== 2) || !Array.isArray(data.categories) || !data.creatorAssignments ||
       typeof data.creatorAssignments !== 'object' || Array.isArray(data.creatorAssignments)) {
     throw new Error('Unsupported saved settings.');
   }
@@ -36,14 +36,20 @@ export function parseSettings(value: unknown): Settings {
     }
     ids.add(category.id);
   }
-  const assignments: Record<string, string[]> = Object.create(null);
-  for (const [creator, categories] of Object.entries(data.creatorAssignments)) {
-    if (!Array.isArray(categories) || !categories.every(id => typeof id === 'string')) {
-      throw new Error('Invalid saved assignments.');
+  const assignments: Settings['creatorAssignments'] = Object.create(null);
+  for (const [creator, assignment] of Object.entries(data.creatorAssignments)) {
+    if (data.version === 1) {
+      if (!Array.isArray(assignment) || !assignment.every(id => typeof id === 'string')) {
+        throw new Error('Invalid saved assignments.');
+      }
+      // Resolve legacy multi-category memberships in section order.
+      assignments[creator] = data.categories.find(category => assignment.includes(category.id))?.id ?? null;
+    } else {
+      if (assignment !== null && typeof assignment !== 'string') throw new Error('Invalid saved assignment.');
+      assignments[creator] = typeof assignment === 'string' && ids.has(assignment) ? assignment : null;
     }
-    assignments[creator] = [...new Set(categories.filter(id => ids.has(id)))];
   }
-  return { version: 1, categories: data.categories, creatorAssignments: assignments };
+  return { version: 2, categories: data.categories, creatorAssignments: assignments };
 }
 
 export function groupVideos(videos: Video[], settings: Settings): Map<string, Video[]> {
@@ -53,9 +59,8 @@ export function groupVideos(videos: Video[], settings: Settings): Map<string, Vi
   for (const video of videos) {
     if (seen.has(video.id)) continue;
     seen.add(video.id);
-    const assignments = video.creatorId ? settings.creatorAssignments[video.creatorId] ?? [] : [];
-    const valid = [...new Set(assignments.filter(id => id !== 'other' && groups.has(id)))];
-    for (const id of valid.length ? valid : ['other']) groups.get(id)!.push(video);
+    const assignment = video.creatorId ? settings.creatorAssignments[video.creatorId] : null;
+    groups.get(assignment && groups.has(assignment) ? assignment : 'other')!.push(video);
   }
   return groups;
 }

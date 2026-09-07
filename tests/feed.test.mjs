@@ -10,29 +10,29 @@ const { groupVideos, parseSettings, creatorIdentity } = await import(
 );
 const video = (id, creatorId = '@creator') => ({ id, creatorId, title: id, url: '', thumbnail: '', creatorName: 'Creator' });
 
-test('multiple memberships duplicate across sections only, preserving source order', () => {
+test('single-category grouping deduplicates videos and preserves source order', () => {
   const settings = parseSettings(undefined);
-  settings.creatorAssignments['@creator'] = ['reacts', 'tech', 'tech'];
+  settings.creatorAssignments['@creator'] = 'reacts';
   const groups = groupVideos([video('new'), video('old'), video('new')], settings);
   assert.deepEqual([...groups.keys()], ['reacts', 'gaming', 'tech', 'other']);
   assert.deepEqual(groups.get('reacts').map(v => v.id), ['new', 'old']);
-  assert.deepEqual(groups.get('tech').map(v => v.id), ['new', 'old']);
+  assert.deepEqual(groups.get('tech'), []);
   assert.equal(groups.get('other').length, 0);
 });
 
 test('unassigned, missing and stale creator assignments fall into Other', () => {
   const settings = parseSettings(undefined);
-  settings.creatorAssignments['@stale'] = ['deleted'];
+  settings.creatorAssignments['@stale'] = 'deleted';
   assert.equal(groupVideos([video('a'), video('b', null), video('c', '@stale')], settings).get('other').length, 3);
 });
 
 test('assigning and clearing a creator moves all uploads, including future ones', () => {
   let settings = parseSettings(undefined);
-  settings.creatorAssignments['@creator'] = ['gaming'];
+  settings.creatorAssignments['@creator'] = 'gaming';
   settings = parseSettings(JSON.parse(JSON.stringify(settings)));
   const items = [video('old'), video('future')];
   assert.equal(groupVideos(items, settings).get('gaming').length, 2);
-  settings.creatorAssignments['@creator'] = [];
+  settings.creatorAssignments['@creator'] = null;
   assert.equal(groupVideos(items, settings).get('other').length, 2);
 });
 
@@ -44,8 +44,27 @@ test('creator identity ignores query strings and tab paths, rejects unrelated UR
 });
 
 test('invalid saved data is rejected instead of silently overwriting assignments', () => {
-  assert.throws(() => parseSettings({ version: 2 }));
+  assert.throws(() => parseSettings({ version: 3 }));
   const settings = parseSettings(undefined);
   settings.categories.push({ id: 'other', name: 'Other' });
+  assert.throws(() => parseSettings(settings));
+});
+
+
+test('migrates old memberships using section order rather than assignment order', () => {
+  const defaults = parseSettings(undefined);
+  const migrated = parseSettings({ ...defaults, version: 1,
+    creatorAssignments: { '@creator': ['tech', 'reacts'], '@stale': ['gone'], '@empty': [] },
+  });
+  assert.equal(migrated.version, 2);
+  assert.equal(migrated.creatorAssignments['@creator'], 'reacts');
+  assert.equal(migrated.creatorAssignments['@stale'], null);
+  assert.equal(migrated.creatorAssignments['@empty'], null);
+  assert.deepEqual(parseSettings(JSON.parse(JSON.stringify(migrated))), migrated);
+});
+
+test('version 2 rejects multiple category assignments', () => {
+  const settings = parseSettings(undefined);
+  settings.creatorAssignments['@creator'] = ['reacts', 'tech'];
   assert.throws(() => parseSettings(settings));
 });

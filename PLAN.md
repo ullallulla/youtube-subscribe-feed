@@ -4,7 +4,7 @@
 
 Create a Chrome extension that reorganizes YouTube's Subscriptions page into stacked category sections. Each section has a heading and a responsive grid of videos, matching the user's sketch.
 
-Categories belong to creators. All current and future videos from a creator inherit that creator's assignments; individual videos do not need to be categorized.
+Categories belong to creators. All current and future videos from a creator inherit that creator's category; individual videos do not need to be categorized.
 
 ## Prototype categories and layout
 
@@ -19,12 +19,12 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 ## Core behavior
 
-- A creator can belong to multiple categories.
-- Videos from a creator assigned to both Reacts and Gaming appear in both sections.
-- A video appears at most once within each section.
+- A creator belongs to one category at a time.
+- Reuse original YouTube cards to retain native menus, metadata, watched progress, and hover behavior where supported.
+- Move each original card into one section; never clone it across categories.
 - Other always appears last and contains videos from creators with no category assignments.
 - Assigning a creator to their first category removes their videos from Other.
-- Removing a creator's last assignment returns their videos to Other.
+- Selecting Other removes the creator’s category assignment.
 - Users can choose the order of custom categories.
 - The stacked sections are the main interface; selecting filters is not required to see the organized feed.
 
@@ -32,7 +32,7 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 ### 1. Build the extension foundation
 
-- Use TypeScript and Chrome Manifest V3.
+- Use TypeScript, React, Vite, and Chrome Manifest V3.
 - Use a content script to integrate the grouped interface into YouTube's Subscriptions page.
 - Account for navigation into Subscriptions from another YouTube page without a full refresh.
 - Save categories, category order, and creator assignments using Chrome's local extension storage.
@@ -43,7 +43,9 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 - Identify video cards, video identity, creator identity, and feed order reliably.
 - Prefer stable channel identifiers over creator display names; verify what identifiers the page exposes before choosing the final mapping approach.
-- Prototype the grouped rendering strategy, including showing a video in multiple sections.
+- Move original card nodes within YouTube’s feed ancestry, keeping placeholders for restoration.
+- Keep native cards outside React ownership and Shadow DOM; React owns the toolbar and category dialog.
+- Verify native hover playback, menus, watched progress, and loading after moves.
 - Preserve working video links and playback behavior.
 - Verify that loading older videos continues to work after reorganizing the page.
 - Handle missing creator information without guessing an assignment or losing the video.
@@ -54,24 +56,24 @@ Each section displays the newest videos first. The number of columns adapts to t
 - Add Other as a permanent automatic section.
 - Render category headings and responsive video grids.
 - Preserve newest-first ordering within each category.
-- Deduplicate videos within each category while allowing them across different categories.
+- Keep each original card in one category and preserve source order.
 - Show a clear empty state when a category has no matching loaded videos.
 
 ### 4. Add creator assignment controls
 
-- Add a Categories control to video cards.
-- Open a checklist for assigning the creator to one or more categories.
-- Make clear that the checklist edits the creator's assignments, not just the selected video.
+- Add a separate Choose category control below each original card, preserving the native three-dot menu.
+- Open a single-choice dialog for assigning the creator to one category or Other.
+- Make clear that the dialog edits the creator’s category, not just the selected video.
 - Update all loaded videos from that creator immediately across all sections.
 - Save changes automatically and apply them to future uploads.
 
 ### 5. Add category management
 
 - Allow creating, renaming, reordering, and deleting custom categories.
-- Allow creating a category directly from the creator assignment checklist.
+- Allow creating a category directly from the creator assignment dialog.
 - Provide a searchable list of creators encountered in the feed and controls to edit their assignments.
 - Keep Other last and manage its membership automatically.
-- When a category is deleted, preserve other assignments and return creators with no remaining assignments to Other.
+- When a category is deleted, return its creators to Other.
 - Add export/import for backing up categories and assignments, with validation before applying imported data.
 
 ### 6. Handle loading and navigation
@@ -84,7 +86,8 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 ### 7. Validate and polish
 
-- Verify a creator assigned to Reacts and Tech appears in both sections, once per video per section.
+- Verify moving a creator from Reacts to Tech moves all their cards into Tech only.
+- Verify legacy multi-category settings migrate to the first assigned category in section order, preserving a backup of the old settings.
 - Verify an unassigned creator appears only in Other.
 - Verify assigning and removing categories updates all affected sections immediately.
 - Verify settings persist across refreshes and browser restarts.
@@ -96,7 +99,7 @@ Each section displays the newest videos first. The number of columns adapts to t
 
 ## First milestone
 
-A working Subscriptions-page prototype with Reacts, Gaming, Tech, and Other; creator assignment checklists; support for multiple categories per creator; persistent settings; and working loading of additional feed videos.
+A working Subscriptions-page prototype with Reacts, Gaming, Tech, and Other; single-choice creator assignment dialogs; native YouTube cards; persistent settings; and working loading of additional feed videos.
 
 After the prototype is reliable, add full category management, backup import/export, and visual polish.
 
@@ -114,3 +117,7 @@ After the prototype is reliable, add full category management, backup import/exp
 - [Chrome Manifest documentation](https://developer.chrome.com/docs/extensions/reference/manifest)
 - [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
 - [Chrome extension storage](https://developer.chrome.com/docs/extensions/reference/api/storage)
+
+## Native-card migration
+
+Settings version 2 stores one category ID or null per creator. Version 1 memberships are migrated using category section order; the original settings are backed up under `subscriptionGroupsSettingsV1Backup`. Native playback and continuation behavior require live Chrome validation in addition to DOM tests.

@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Settings } from '../shared/categories';
-import { groupVideos, type Video } from '../shared/feed';
+import type { Video } from '../shared/feed';
 
-export interface AppProps {
-  videos: Video[];
-  settings: Settings;
-  original: boolean;
-  onToggle: () => void;
-  onSave: (creatorId: string, categoryIds: string[]) => Promise<void>;
-}
-
-interface Editor {
+export interface Editor {
   video: Video;
   trigger: HTMLButtonElement;
+}
+
+export interface AppProps {
+  settings: Settings;
+  original: boolean;
+  editor: Editor | null;
+  onToggle: () => void;
+  onDismiss: () => void;
+  onSave: (creatorId: string, categoryId: string | null) => Promise<void>;
 }
 
 function CategoryDialog({ video, settings, onSave, onDismiss }: {
@@ -22,7 +23,7 @@ function CategoryDialog({ video, settings, onSave, onDismiss }: {
   onDismiss: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [selected, setSelected] = useState(() => new Set(settings.creatorAssignments[video.creatorId!] ?? []));
+  const [selected, setSelected] = useState(settings.creatorAssignments[video.creatorId!] ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,7 +37,7 @@ function CategoryDialog({ video, settings, onSave, onDismiss }: {
     setSaving(true);
     setError('');
     try {
-      await onSave(video.creatorId!, [...selected]);
+      await onSave(video.creatorId!, selected);
       onDismiss();
     } catch {
       setError('Could not save. Try again, or reload this page if the extension was updated.');
@@ -44,88 +45,39 @@ function CategoryDialog({ video, settings, onSave, onDismiss }: {
     }
   }
 
-  return (
-    <dialog ref={dialog} aria-labelledby="category-dialog-title" onCancel={event => {
-      event.preventDefault();
-      if (!saving) onDismiss();
-    }}>
-      <h2 id="category-dialog-title">Categories for {video.creatorName}</h2>
-      <p>All videos from this creator will appear in each selected category.</p>
-      <fieldset disabled={saving}>
-        <legend>Choose categories</legend>
-        {settings.categories.map(category => (
-          <label key={category.id}>
-            <input type="checkbox" checked={selected.has(category.id)} onChange={event => {
-              const next = new Set(selected);
-              if (event.target.checked) next.add(category.id);
-              else next.delete(category.id);
-              setSelected(next);
-            }} />
-            {category.name}
-          </label>
-        ))}
-      </fieldset>
-      <p>Leave all unchecked to place this creator in Other.</p>
-      <p className="error" role="alert">{error}</p>
-      <div className="actions">
-        <button disabled={saving} onClick={onDismiss}>Cancel</button>
-        <button disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button>
-      </div>
-    </dialog>
-  );
+  return <dialog ref={dialog} aria-labelledby="category-dialog-title" onCancel={event => {
+    event.preventDefault();
+    if (!saving) onDismiss();
+  }}>
+    <h2 id="category-dialog-title">Category for {video.creatorName}</h2>
+    <p>All videos from this creator will appear in the selected category.</p>
+    <fieldset disabled={saving}>
+      <legend>Choose one category</legend>
+      {[...settings.categories, { id: 'other', name: 'Other' }].map(category => {
+        const value = category.id === 'other' ? null : category.id;
+        return <label key={category.id}>
+          <input type="radio" name="creator-category" checked={selected === value} onChange={() => setSelected(value)} />
+          {category.name}
+        </label>;
+      })}
+    </fieldset>
+    <p className="error" role="alert">{error}</p>
+    <div className="actions">
+      <button disabled={saving} onClick={onDismiss}>Cancel</button>
+      <button disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</button>
+    </div>
+  </dialog>;
 }
 
-export function App({ videos, settings, original, onToggle, onSave }: AppProps) {
-  const [editor, setEditor] = useState<Editor | null>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const groups = groupVideos(videos, settings);
-
-  function dismiss() {
-    const trigger = editor?.trigger;
-    setEditor(null);
-    requestAnimationFrame(() => {
-      if (trigger?.isConnected) trigger.focus();
-      else toggle.current?.focus();
-    });
-  }
-
+export function App({ settings, original, editor, onToggle, onDismiss, onSave }: AppProps) {
   return <>
     <header>
       <h1>Your subscription groups</h1>
-      <button ref={toggle} onClick={onToggle}>{original ? 'Show grouped feed' : 'Show original feed'}</button>
+      <button onClick={onToggle}>{original ? 'Show grouped feed' : 'Show original feed'}</button>
     </header>
     <p className="hint">{original
       ? 'You are viewing the original YouTube feed.'
-      : 'Use the three-dot button on a video to organize its creator. Sections include videos loaded so far, in feed order. Scroll down to load more.'}</p>
-    {!original && [...settings.categories, { id: 'other', name: 'Other' }].map(category => {
-      const items = groups.get(category.id)!;
-      return <section key={category.id}>
-        <h2>{category.name} · {items.length}</h2>
-        {items.length ? <div className="grid">{items.map(video => (
-          <article key={video.id}>
-            <a href={video.url} aria-label={video.title}>
-              <img src={video.thumbnail} alt="" loading="lazy" />
-            </a>
-            <div className="card-details">
-              <div className="card-text">
-                <h3><a href={video.url} title={video.title}>{video.title}</a></h3>
-                <p className="creator">{video.creatorName}</p>
-                {!!video.metadata?.length && <p className="metadata">{video.metadata.join(' · ')}</p>}
-              </div>
-              {video.creatorId && <button className="category-menu-button" type="button"
-                aria-label={`Choose categories for ${video.creatorName}`} aria-haspopup="dialog" title="Choose categories"
-                onClick={event => setEditor({ video, trigger: event.currentTarget })}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
-              </button>}
-            </div>
-          </article>
-        ))}</div> : <p className="empty">No matching videos loaded yet.</p>}
-      </section>;
-    })}
-    {editor && <CategoryDialog video={editor.video} settings={settings} onSave={onSave} onDismiss={dismiss} />}
+      : 'Use Choose category below a video to organize its creator. YouTube’s three-dot menu keeps its usual actions. Scroll down to load more.'}</p>
+    {editor && <CategoryDialog key={editor.video.creatorId} video={editor.video} settings={settings} onSave={onSave} onDismiss={onDismiss} />}
   </>;
 }

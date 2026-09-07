@@ -31,7 +31,7 @@ const { App, act, createElement, createRoot } = await import(
   `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
 );
 
-test('React preserves dialog choices across feed updates, saves, and displays failures', async () => {
+test('single-category dialog preserves choices across updates and handles save errors', async () => {
   const dom = new JSDOM('<!doctype html><div id="host"></div>', { url: 'https://www.youtube.com/feed/subscriptions' });
   const previous = new Map();
   const globals = {
@@ -48,15 +48,20 @@ test('React preserves dialog choices across feed updates, saves, and displays fa
   const shadow = document.querySelector('#host').attachShadow({ mode: 'open' });
   const root = createRoot(shadow);
   const settings = {
-    version: 1, categories: [{ id: 'reacts', name: 'Reacts' }, { id: 'gaming', name: 'Gaming' }, { id: 'tech', name: 'Tech' }],
+    version: 2, categories: [{ id: 'reacts', name: 'Reacts' }, { id: 'gaming', name: 'Gaming' }, { id: 'tech', name: 'Tech' }],
     creatorAssignments: {},
   };
   const video = { id: 'a', title: 'A video', creatorId: '@creator', creatorName: 'Creator', url: '/watch?v=a', thumbnail: 'https://i.ytimg.com/vi/a/hqdefault.jpg', metadata: ['123K views', '2 days ago'] };
   let saved;
   let toggled = false;
   let rejectSave = false;
-  const props = {
-    videos: [video], settings, original: false,
+  const trigger = document.createElement('button');
+  document.body.append(trigger);
+  let props;
+  const render = () => root.render(createElement(App, props));
+  props = {
+    settings, original: false, editor: { video, trigger },
+    onDismiss: () => { props = { ...props, editor: null }; render(); },
     onToggle: () => { toggled = true; },
     onSave: async (creator, ids) => {
       if (rejectSave) throw new Error('Storage unavailable');
@@ -67,19 +72,21 @@ test('React preserves dialog choices across feed updates, saves, and displays fa
   const saveButton = () => [...shadow.querySelectorAll('dialog button')].find(button => button.textContent === 'Save');
   try {
     await act(async () => root.render(createElement(App, props)));
-    assert.deepEqual([...shadow.querySelectorAll('section h2')].map(node => node.textContent), ['Reacts · 0', 'Gaming · 0', 'Tech · 0', 'Other · 1']);
-    assert.equal(shadow.querySelector('.metadata').textContent, '123K views · 2 days ago');
-    await click(shadow.querySelector('article button'));
-    await click(shadow.querySelector('input'));
-    await act(async () => root.render(createElement(App, { ...props, videos: [video, { ...video, id: 'b', metadata: [] }] })));
-    assert.equal(shadow.querySelectorAll('.metadata').length, 1);
-    assert.equal(shadow.querySelector('input').checked, true);
+    const radios = () => [...shadow.querySelectorAll('input[type="radio"]')];
+    assert.equal(radios().length, 4);
+    assert.equal(radios()[3].checked, true);
+    await click(radios()[0]);
+    await click(radios()[2]);
+    assert.equal(radios().filter(node => node.checked).length, 1);
+    await act(async () => root.render(createElement(App, { ...props, settings: { ...settings } })));
+    assert.equal(radios()[2].checked, true);
     assert.ok(shadow.querySelector('dialog[open]'));
     await click(saveButton());
-    assert.deepEqual(saved, { creator: '@creator', ids: ['reacts'] });
+    assert.deepEqual(saved, { creator: '@creator', ids: 'tech' });
     assert.equal(shadow.querySelector('dialog'), null);
     rejectSave = true;
-    await click(shadow.querySelector('article button'));
+    props = { ...props, editor: { video, trigger } };
+    await act(async () => render());
     await click(saveButton());
     assert.match(shadow.querySelector('[role="alert"]').textContent, /Could not save/);
     assert.equal(saveButton().disabled, false);
@@ -88,7 +95,7 @@ test('React preserves dialog choices across feed updates, saves, and displays fa
     await click(shadow.querySelector('header button'));
     assert.equal(toggled, true);
     await act(async () => root.render(createElement(App, { ...props, original: true })));
-    assert.equal(shadow.querySelector('section'), null);
+    assert.match(shadow.querySelector('.hint').textContent, /original YouTube feed/);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

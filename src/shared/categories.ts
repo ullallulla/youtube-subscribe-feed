@@ -4,16 +4,16 @@ export interface Category {
 }
 
 export interface Settings {
-  version: 1;
+  version: 2;
   /** Array order determines section order. Other is derived and always last. */
   categories: Category[];
-  /** Creator identifier mapped to category IDs. */
-  creatorAssignments: Record<string, string[]>;
+  /** One category per creator; null means Other. */
+  creatorAssignments: Record<string, string | null>;
 }
 
 export function createDefaultSettings(): Settings {
   return {
-    version: 1,
+    version: 2,
     categories: [
       { id: 'reacts', name: 'Reacts' },
       { id: 'gaming', name: 'Gaming' },
