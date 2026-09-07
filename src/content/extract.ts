@@ -1,7 +1,14 @@
 import { creatorIdentity, type Video } from '../shared/feed';
 
 // Keep YouTube-specific selectors together for future layout changes.
-const CARD_SELECTOR = 'ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-video-renderer, yt-lockup-view-model';
+const CARD_SELECTOR = 'ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-video-renderer, yt-lockup-view-model, ytd-reel-item-renderer, yt-shorts-lockup-view-model, ytm-shorts-lockup-view-model';
+const SHORTS_SHELF_SELECTOR = 'ytd-rich-shelf-renderer[is-shorts], ytd-reel-shelf-renderer';
+
+/** Move the whole shelf so its carousel, controls and vertical cards stay intact. */
+export function extractShortsShelves(feed: Element): HTMLElement[] {
+  return [...new Set(Array.from(feed.querySelectorAll<HTMLElement>(SHORTS_SHELF_SELECTOR))
+    .map(shelf => shelf.closest<HTMLElement>('ytd-rich-section-renderer') ?? shelf))];
+}
 const METADATA_ROW_SELECTOR = [
   '.yt-content-metadata-view-model__metadata-row',
   '.yt-content-metadata-view-model-wiz__metadata-row',
@@ -37,6 +44,8 @@ export function extractVideos(feed: Element): { videos: Video[]; cards: HTMLElem
   const videos: Video[] = [];
   const cards: HTMLElement[] = [];
   for (const card of Array.from(feed.querySelectorAll<HTMLElement>(CARD_SELECTOR))) {
+    // Shelves are moved as one native element, never split into individual cards.
+    if (card.closest(SHORTS_SHELF_SELECTOR) || card.querySelector(SHORTS_SHELF_SELECTOR)) continue;
     // Only move the outermost renderer; nested lockups belong to that card.
     if (card.parentElement?.closest(CARD_SELECTOR)) continue;
     const links = Array.from(card.querySelectorAll<HTMLAnchorElement>('a[href]'));
@@ -45,7 +54,7 @@ export function extractVideos(feed: Element): { videos: Video[]; cards: HTMLElem
     const url = new URL(watch.href, location.origin);
     const id = url.pathname === '/watch' ? url.searchParams.get('v') : url.pathname.match(/^\/shorts\/([^/]+)/)?.[1];
     if (!id) continue;
-    const titleElement = card.querySelector<HTMLElement>('#video-title, #video-title-link, .yt-lockup-metadata-view-model__title, h3 a');
+    const titleElement = card.querySelector<HTMLElement>('#video-title, #video-title-link, .yt-lockup-metadata-view-model__title, h3 a, .shortsLockupViewModelHostMetadataTitle, .ytShortsLockupViewModelHostMetadataTitle');
     const title = titleElement?.textContent?.trim() || watch.getAttribute('title') || watch.getAttribute('aria-label');
     if (!title) continue;
     const creator = links.find(link => creatorIdentity(link.href) && link.textContent?.trim()) ?? links.find(link => creatorIdentity(link.href));
@@ -55,6 +64,7 @@ export function extractVideos(feed: Element): { videos: Video[]; cards: HTMLElem
       creatorId: creator ? creatorIdentity(creator.href) : null,
       creatorName: creator?.textContent?.trim() || 'Creator unavailable',
       metadata: extractMetadata(card),
+      isShort: url.pathname.startsWith('/shorts/') || card.matches('ytd-reel-item-renderer, yt-shorts-lockup-view-model, ytm-shorts-lockup-view-model') || !!card.querySelector('ytd-reel-item-renderer, yt-shorts-lockup-view-model, ytm-shorts-lockup-view-model'),
     });
     cards.push(card);
   }

@@ -64,3 +64,56 @@ test('moves original nodes, keeps native actions, adds new cards, and restores e
     }
   }
 });
+
+test('keeps native Shorts shelves together and routes standalone Shorts before Other', () => {
+  const short = id => `<ytd-rich-item-renderer id="${id}"><ytm-shorts-lockup-view-model>
+    <a href="/shorts/${id}" aria-label="A Short">A Short</a><a href="/@alpha">alpha</a>
+  </ytm-shorts-lockup-view-model></ytd-rich-item-renderer>`;
+  const shelf = `<ytd-rich-section-renderer id="shelf"><ytd-rich-shelf-renderer is-shorts>
+    <h2>Shorts</h2>${short('inside')}<button class="carousel-next">Next</button>
+  </ytd-rich-shelf-renderer></ytd-rich-section-renderer>`;
+  const dom = new JSDOM(`<ytd-rich-grid-renderer><div id="contents">${markup('regular', 'alpha')}${shelf}${short('standalone')}<ytd-continuation-item-renderer></ytd-continuation-item-renderer></div></ytd-rich-grid-renderer>`, { url: 'https://www.youtube.com/feed/subscriptions' });
+  const previous = new Map();
+  for (const [key, value] of Object.entries({ document: dom.window.document, location: dom.window.location, Node: dom.window.Node })) {
+    previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+  }
+  let manager;
+  try {
+    const feed = document.querySelector('ytd-rich-grid-renderer');
+    const shelfNode = document.querySelector('#shelf');
+    const inside = document.querySelector('#inside');
+    const standalone = document.querySelector('#standalone');
+    let nextClicks = 0;
+    shelfNode.querySelector('button').addEventListener('click', () => nextClicks++);
+    manager = new NativeCards(feed, () => {});
+    const settings = { version: 2, categories: [{ id: 'gaming', name: 'Gaming' }], creatorAssignments: { '@alpha': 'gaming' } };
+    manager.sync(settings);
+    const sections = [...manager.container.children];
+    assert.deepEqual(sections.map(node => node.querySelector('h2').textContent), ['Gaming · 1', 'Shorts', 'Other · 0']);
+    assert.equal(sections[1].querySelector('#shelf'), shelfNode);
+    assert.equal(shelfNode.querySelector('#inside'), inside);
+    assert.equal(sections[1].querySelector('#standalone'), standalone);
+    assert.equal(sections[1].querySelectorAll('.native-group-category').length, 0);
+    assert.equal(sections[1].querySelectorAll('[data-native-group-card]').length, 2);
+    shelfNode.querySelector('button').click();
+    assert.equal(nextClicks, 1);
+    // Both newly loaded shelf cards and standalone Shorts retain their native nodes.
+    shelfNode.querySelector('ytd-rich-shelf-renderer').insertAdjacentHTML('beforeend', short('inside-later'));
+    feed.querySelector('ytd-continuation-item-renderer').insertAdjacentHTML('beforebegin', short('later'));
+    manager.sync(settings);
+    assert.equal(sections[1].querySelectorAll('[data-native-group-card]').length, 3);
+    assert.ok(shelfNode.querySelector('#inside-later'));
+    assert.equal(settings.creatorAssignments['@alpha'], 'gaming');
+    manager.restore();
+    assert.deepEqual([...feed.querySelector('#contents').children].map(node => node.id || node.tagName.toLowerCase()), ['regular', 'shelf', 'standalone', 'later', 'ytd-continuation-item-renderer']);
+    assert.equal(shelfNode.querySelector('#inside'), inside);
+  } finally {
+    manager?.restore();
+    dom.window.close();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
+});

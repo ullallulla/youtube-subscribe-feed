@@ -1,10 +1,10 @@
-import type { Settings } from '../shared/categories';
-import type { Video } from '../shared/feed';
-import { extractVideos } from './extract';
+import { SHORTS_SECTION_ID, type Settings } from '../shared/categories';
+import { feedSections, videoSection, type Video } from '../shared/feed';
+import { extractShortsShelves, extractVideos } from './extract';
 
 interface CardRecord {
   card: HTMLElement;
-  video: Video;
+  video: Video | null;
   marker: Comment;
   wrapper: HTMLDivElement;
   button: HTMLButtonElement;
@@ -42,27 +42,30 @@ export class NativeCards {
       }
     }
     const { videos, cards } = extractVideos(this.feed);
-    cards.forEach((card, index) => {
+    const items = cards.map((card, index) => ({ card, video: videos[index] as Video | null }));
+    items.push(...extractShortsShelves(this.feed).map(card => ({ card, video: null })));
+    items.forEach(({ card, video }) => {
       const existing = this.records.get(card);
-      if (existing) { existing.video = videos[index]; return; }
+      if (existing) { existing.video = video; return; }
       const marker = document.createComment('subscription-groups: original card position');
       card.before(marker);
       const wrapper = document.createElement('div');
       wrapper.dataset.nativeGroupCard = '';
+      if (!video) wrapper.dataset.nativeShortsShelf = '';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'native-group-category';
       button.textContent = 'Choose category';
       button.setAttribute('aria-haspopup', 'dialog');
-      const record = { card, video: videos[index], marker, wrapper, button };
+      const record = { card, video, marker, wrapper, button };
       button.addEventListener('click', event => {
         event.stopPropagation();
-        this.edit(record.video, button);
+        if (record.video) this.edit(record.video, button);
       });
       this.records.set(card, record);
     });
 
-    const categories = [...settings.categories, { id: 'other', name: 'Other' }];
+    const categories = feedSections(settings);
     for (const [id, section] of this.sections) {
       if (!categories.some(category => category.id === id)) {
         // Cards will be moved into their remaining category below.
@@ -76,6 +79,7 @@ export class NativeCards {
         const heading = document.createElement('h2');
         const grid = document.createElement('div');
         grid.className = 'native-group-grid';
+        if (category.id === SHORTS_SECTION_ID) grid.classList.add('native-shorts-grid');
         const empty = document.createElement('p');
         empty.className = 'native-group-empty';
         empty.textContent = 'No matching videos loaded yet.';
@@ -93,13 +97,12 @@ export class NativeCards {
     const records = [...this.records.values()].sort((a, b) =>
       a.marker.compareDocumentPosition(b.marker) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
     for (const record of records) {
-      const assignment = record.video.creatorId ? settings.creatorAssignments[record.video.creatorId] : null;
-      const id = assignment && counts.has(assignment) ? assignment : 'other';
+      const id = record.video ? videoSection(record.video, settings) : SHORTS_SECTION_ID;
       const grid = this.sections.get(id)!.grid;
       const position = counts.get(id)!;
       if (grid.children[position] !== record.wrapper) move(grid, record.wrapper, grid.children[position] ?? null);
       if (record.card.parentElement !== record.wrapper) move(record.wrapper, record.card, record.wrapper.firstChild);
-      if (record.video.creatorId) {
+      if (record.video?.creatorId && !record.video.isShort) {
         record.button.setAttribute('aria-label', `Choose category for ${record.video.creatorName}`);
         if (record.button.parentElement !== record.wrapper) record.wrapper.append(record.button);
       } else record.button.remove();
@@ -108,7 +111,7 @@ export class NativeCards {
     for (const category of categories) {
       const section = this.sections.get(category.id)!;
       const count = counts.get(category.id)!;
-      const title = `${category.name} · ${count}`;
+      const title = category.id === SHORTS_SECTION_ID ? category.name : `${category.name} · ${count}`;
       if (section.heading.textContent !== title) section.heading.textContent = title;
       section.empty.hidden = count > 0;
     }

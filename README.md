@@ -2,7 +2,7 @@
 
 A Chrome extension project for organizing YouTube's Subscriptions page into stacked sections based on creator categories.
 
-The prototype categories are **Reacts**, **Gaming**, and **Tech**, followed by **Other** for uncategorized creators. Each creator belongs to one category, and their original YouTube cards appear in that section.
+The prototype categories are **Reacts**, **Gaming**, and **Tech**, followed by a fixed **Shorts** section and **Other** for uncategorized regular videos. Each creator belongs to one category for regular videos. Shorts from every creator appear in Shorts, which is not an option in the category picker. Original YouTube Shorts shelves remain intact, and standalone Shorts retain their vertical native cards.
 
 ## Status
 

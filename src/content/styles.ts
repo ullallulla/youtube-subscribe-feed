@@ -35,6 +35,8 @@ export const nativeStyles = `
   [data-native-groups] > section { margin:24px 0 36px; }
   [data-native-groups] > section > h2 { color:inherit; font:600 24px Roboto,Arial,sans-serif; margin:0 0 20px; }
   [data-native-groups] .native-group-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:28px 16px; }
+  [data-native-groups] .native-shorts-grid { grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr)); }
+  [data-native-shorts-shelf] { grid-column:1 / -1; }
   [data-native-group-card] { min-width:0; --ytd-rich-grid-items-per-row:1; --ytd-rich-grid-posts-per-row:1; }
   [data-native-group-card] > :first-child { display:block !important; width:100% !important; min-width:0 !important; max-width:none !important; margin:0 !important; }
   [data-native-groups] .native-group-category { display:block; cursor:pointer; font:13px Roboto,Arial,sans-serif; padding:6px 10px; margin-top:8px; border:1px solid #aaa; border-radius:16px; background:transparent; color:inherit; }

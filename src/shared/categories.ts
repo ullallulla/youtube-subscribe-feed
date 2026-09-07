@@ -3,6 +3,9 @@ export interface Category {
   name: string;
 }
 
+// A display section only; never offered as a creator category.
+export const SHORTS_SECTION_ID = '__shorts__';
+
 export interface Settings {
   version: 2;
   /** Array order determines section order. Other is derived and always last. */

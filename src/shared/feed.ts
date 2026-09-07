@@ -1,4 +1,4 @@
-import { createDefaultSettings, type Settings } from './categories';
+import { createDefaultSettings, SHORTS_SECTION_ID, type Settings } from './categories';
 
 export interface Video {
   id: string;
@@ -9,6 +9,7 @@ export interface Video {
   creatorName: string;
   /** YouTube's localized view count and publication age/status, when available. */
   metadata?: string[];
+  isShort?: boolean;
 }
 
 export function creatorIdentity(href: string): string | null {
@@ -30,7 +31,7 @@ export function parseSettings(value: unknown): Settings {
   }
   const ids = new Set<string>();
   for (const category of data.categories) {
-    if (!category || typeof category.id !== 'string' || !category.id || category.id === 'other' ||
+    if (!category || typeof category.id !== 'string' || !category.id || category.id === 'other' || category.id === SHORTS_SECTION_ID ||
         ids.has(category.id) || typeof category.name !== 'string' || !category.name.trim()) {
       throw new Error('Invalid saved categories.');
     }
@@ -52,15 +53,23 @@ export function parseSettings(value: unknown): Settings {
   return { version: 2, categories: data.categories, creatorAssignments: assignments };
 }
 
+export function feedSections(settings: Settings) {
+  return [...settings.categories, { id: SHORTS_SECTION_ID, name: 'Shorts' }, { id: 'other', name: 'Other' }];
+}
+
+export function videoSection(video: Video, settings: Settings): string {
+  if (video.isShort) return SHORTS_SECTION_ID;
+  const assignment = video.creatorId ? settings.creatorAssignments[video.creatorId] : null;
+  return assignment && settings.categories.some(category => category.id === assignment) ? assignment : 'other';
+}
+
 export function groupVideos(videos: Video[], settings: Settings): Map<string, Video[]> {
-  const groups = new Map(settings.categories.map(category => [category.id, [] as Video[]]));
-  groups.set('other', []);
+  const groups = new Map(feedSections(settings).map(category => [category.id, [] as Video[]]));
   const seen = new Set<string>();
   for (const video of videos) {
     if (seen.has(video.id)) continue;
     seen.add(video.id);
-    const assignment = video.creatorId ? settings.creatorAssignments[video.creatorId] : null;
-    groups.get(assignment && groups.has(assignment) ? assignment : 'other')!.push(video);
+    groups.get(videoSection(video, settings))!.push(video);
   }
   return groups;
 }

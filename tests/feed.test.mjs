@@ -14,7 +14,7 @@ test('single-category grouping deduplicates videos and preserves source order', 
   const settings = parseSettings(undefined);
   settings.creatorAssignments['@creator'] = 'reacts';
   const groups = groupVideos([video('new'), video('old'), video('new')], settings);
-  assert.deepEqual([...groups.keys()], ['reacts', 'gaming', 'tech', 'other']);
+  assert.deepEqual([...groups.keys()], ['reacts', 'gaming', 'tech', '__shorts__', 'other']);
   assert.deepEqual(groups.get('reacts').map(v => v.id), ['new', 'old']);
   assert.deepEqual(groups.get('tech'), []);
   assert.equal(groups.get('other').length, 0);
@@ -67,4 +67,17 @@ test('version 2 rejects multiple category assignments', () => {
   const settings = parseSettings(undefined);
   settings.creatorAssignments['@creator'] = ['reacts', 'tech'];
   assert.throws(() => parseSettings(settings));
+});
+
+
+test('Shorts bypass creator categories and Other without changing assignments', () => {
+  const settings = parseSettings(undefined);
+  settings.creatorAssignments['@creator'] = 'gaming';
+  const items = [video('regular'), { ...video('short'), isShort: true }, { ...video('unknown', null), isShort: true }];
+  const groups = groupVideos(items, settings);
+  assert.deepEqual(groups.get('gaming').map(v => v.id), ['regular']);
+  assert.deepEqual(groups.get('__shorts__').map(v => v.id), ['short', 'unknown']);
+  assert.equal(groups.get('other').length, 0);
+  assert.equal(settings.creatorAssignments['@creator'], 'gaming');
+  assert.ok(!settings.categories.some(category => category.id === '__shorts__'));
 });

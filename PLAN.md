@@ -13,13 +13,16 @@ The initial section order is:
 1. Reacts
 2. Gaming
 3. Tech
-4. Other
+4. Shorts (fixed section, not a creator category)
+5. Other
 
 Each section displays the newest videos first. The number of columns adapts to the available screen width. Opening Subscriptions immediately shows the grouped layout with saved assignments.
 
 ## Core behavior
 
-- A creator belongs to one category at a time.
+- A creator belongs to one category at a time for regular videos.
+- Shorts from all creators go to a fixed Shorts section immediately before Other. Shorts is excluded from the category picker.
+- Preserve native Shorts shelves and standalone vertical cards, including restoration to the original feed.
 - Reuse original YouTube cards to retain native menus, metadata, watched progress, and hover behavior where supported.
 - Move each original card into one section; never clone it across categories.
 - Other always appears last and contains videos from creators with no category assignments.
