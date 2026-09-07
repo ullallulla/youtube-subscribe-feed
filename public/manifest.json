@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Subscription Groups",
+  "version": "0.1.0",
+  "description": "Organize your subscriptions by creator. Initial development scaffold.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
