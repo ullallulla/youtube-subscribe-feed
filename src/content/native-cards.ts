@@ -172,7 +172,9 @@ export class NativeCards {
       }
     }
     // Native continuation wrappers also need a layout box when explicitly loading.
+    // Shelf-internal continuations belong to the shelf; flattening them would break its layout.
     for (const continuation of Array.from(this.source.querySelectorAll('ytd-continuation-item-renderer'))) {
+      if (continuation.closest('[data-native-group-excluded], [data-native-shorts-shelf]')) continue;
       for (let parent = continuation.parentElement; parent && parent !== this.source; parent = parent.parentElement) flattened.add(parent);
     }
     for (const node of this.flattened) if (!flattened.has(node)) node.removeAttribute('data-native-flat');
@@ -183,9 +185,31 @@ export class NativeCards {
     this.layout();
   }
 
+  private sectionOf(record: CardRecord): string {
+    return record.video ? videoSection(record.video, this.settings!) : SHORTS_SECTION_ID;
+  }
+
+  /** The trigger while its card is visible, otherwise the toggle of the section now holding that card. */
+  focusTarget(trigger: HTMLButtonElement): HTMLElement | null {
+    for (const record of this.records.values()) {
+      if (record.button !== trigger) continue;
+      if (!trigger.isConnected) return null;
+      if (!record.card.hasAttribute('data-native-card-collapsed')) return trigger;
+      return this.sections.get(this.sectionOf(record))?.toggle ?? null;
+    }
+    return null;
+  }
+
   private layout(): void {
     if (!this.settings) return;
     const categories = feedSections(this.settings);
+    const bySection = new Map<string, CardRecord[]>();
+    for (const record of this.records.values()) {
+      const id = this.sectionOf(record);
+      const list = bySection.get(id);
+      if (list) list.push(record);
+      else bySection.set(id, [record]);
+    }
     for (const [id, section] of this.sections) {
       if (!categories.some(category => category.id === id)) { section.node.remove(); this.sections.delete(id); this.expandedSections.delete(id); this.visibleLimits.delete(id); }
     }
@@ -214,7 +238,7 @@ export class NativeCards {
         more.addEventListener('click', event => {
           event.stopPropagation();
           if (!this.settings) return;
-          const count = [...this.records.values()].filter(record => record.video && videoSection(record.video, this.settings!) === category.id).length;
+          const count = [...this.records.values()].filter(record => this.sectionOf(record) === category.id).length;
           const limit = this.visibleLimits.get(category.id) ?? VIDEOS_PER_PAGE;
           this.visibleLimits.set(category.id, Math.min(count, limit) + VIDEOS_PER_PAGE);
           if (count <= limit) this.loadMore();
@@ -244,9 +268,7 @@ export class NativeCards {
       setOrder(section.controls, index * 3 + 2);
       const limit = category.id === SHORTS_SECTION_ID ? Infinity : (this.visibleLimits.get(category.id) ?? VIDEOS_PER_PAGE);
       const controls: string[] = [];
-      for (const record of this.records.values()) {
-        const id = record.video ? videoSection(record.video, this.settings) : SHORTS_SECTION_ID;
-        if (id !== category.id) continue;
+      for (const record of bySection.get(category.id) ?? []) {
         setOrder(record.card, index * 3 + 1);
         if (expanded && controls.length < limit) record.card.removeAttribute('data-native-card-collapsed');
         else setAttribute(record.card, 'data-native-card-collapsed', '');

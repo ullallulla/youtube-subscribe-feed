@@ -5,25 +5,23 @@ import { build } from 'esbuild';
 const { outputFiles } = await build({
   entryPoints: ['src/shared/feed.ts'], bundle: true, platform: 'node', format: 'esm', write: false,
 });
-const { groupVideos, parseSettings, creatorIdentity } = await import(
+const { feedSections, videoSection, parseSettings, creatorIdentity } = await import(
   `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
 );
-const video = (id, creatorId = '@creator') => ({ id, creatorId, title: id, url: '', thumbnail: '', creatorName: 'Creator' });
+const video = (id, creatorId = '@creator') => ({ id, creatorId, title: id, url: '', creatorName: 'Creator' });
+const sections = (videos, settings) => videos.map(item => videoSection(item, settings));
 
-test('single-category grouping deduplicates videos and preserves source order', () => {
+test('sections follow category order, then Shorts, then Other', () => {
   const settings = parseSettings(undefined);
   settings.creatorAssignments['@creator'] = 'reacts';
-  const groups = groupVideos([video('new'), video('old'), video('new')], settings);
-  assert.deepEqual([...groups.keys()], ['reacts', 'gaming', 'tech', '__shorts__', 'other']);
-  assert.deepEqual(groups.get('reacts').map(v => v.id), ['new', 'old']);
-  assert.deepEqual(groups.get('tech'), []);
-  assert.equal(groups.get('other').length, 0);
+  assert.deepEqual(feedSections(settings).map(section => section.id), ['reacts', 'gaming', 'tech', '__shorts__', 'other']);
+  assert.deepEqual(sections([video('new'), video('old')], settings), ['reacts', 'reacts']);
 });
 
 test('unassigned, missing and stale creator assignments fall into Other', () => {
   const settings = parseSettings(undefined);
   settings.creatorAssignments['@stale'] = 'deleted';
-  assert.equal(groupVideos([video('a'), video('b', null), video('c', '@stale')], settings).get('other').length, 3);
+  assert.deepEqual(sections([video('a'), video('b', null), video('c', '@stale')], settings), ['other', 'other', 'other']);
 });
 
 test('assigning and clearing a creator moves all uploads, including future ones', () => {
@@ -31,9 +29,9 @@ test('assigning and clearing a creator moves all uploads, including future ones'
   settings.creatorAssignments['@creator'] = 'gaming';
   settings = parseSettings(JSON.parse(JSON.stringify(settings)));
   const items = [video('old'), video('future')];
-  assert.equal(groupVideos(items, settings).get('gaming').length, 2);
+  assert.deepEqual(sections(items, settings), ['gaming', 'gaming']);
   settings.creatorAssignments['@creator'] = null;
-  assert.equal(groupVideos(items, settings).get('other').length, 2);
+  assert.deepEqual(sections(items, settings), ['other', 'other']);
 });
 
 test('creator identity ignores query strings and tab paths, rejects unrelated URLs', () => {
@@ -74,10 +72,7 @@ test('Shorts bypass creator categories and Other without changing assignments', 
   const settings = parseSettings(undefined);
   settings.creatorAssignments['@creator'] = 'gaming';
   const items = [video('regular'), { ...video('short'), isShort: true }, { ...video('unknown', null), isShort: true }];
-  const groups = groupVideos(items, settings);
-  assert.deepEqual(groups.get('gaming').map(v => v.id), ['regular']);
-  assert.deepEqual(groups.get('__shorts__').map(v => v.id), ['short', 'unknown']);
-  assert.equal(groups.get('other').length, 0);
+  assert.deepEqual(sections(items, settings), ['gaming', '__shorts__', '__shorts__']);
   assert.equal(settings.creatorAssignments['@creator'], 'gaming');
   assert.ok(!settings.categories.some(category => category.id === '__shorts__'));
 });

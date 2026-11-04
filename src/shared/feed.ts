@@ -4,11 +4,8 @@ export interface Video {
   id: string;
   url: string;
   title: string;
-  thumbnail: string;
   creatorId: string | null;
   creatorName: string;
-  /** YouTube's localized view count and publication age/status, when available. */
-  metadata?: string[];
   isShort?: boolean;
 }
 
@@ -61,15 +58,4 @@ export function videoSection(video: Video, settings: Settings): string {
   if (video.isShort) return SHORTS_SECTION_ID;
   const assignment = video.creatorId ? settings.creatorAssignments[video.creatorId] : null;
   return assignment && settings.categories.some(category => category.id === assignment) ? assignment : 'other';
-}
-
-export function groupVideos(videos: Video[], settings: Settings): Map<string, Video[]> {
-  const groups = new Map(feedSections(settings).map(category => [category.id, [] as Video[]]));
-  const seen = new Set<string>();
-  for (const video of videos) {
-    if (seen.has(video.id)) continue;
-    seen.add(video.id);
-    groups.get(videoSection(video, settings))!.push(video);
-  }
-  return groups;
 }

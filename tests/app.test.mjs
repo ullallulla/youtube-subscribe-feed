@@ -51,7 +51,7 @@ test('single-category dialog preserves choices across updates and handles save e
     version: 2, categories: [{ id: 'reacts', name: 'Reacts' }, { id: 'gaming', name: 'Gaming' }, { id: 'tech', name: 'Tech' }],
     creatorAssignments: {},
   };
-  const video = { id: 'a', title: 'A video', creatorId: '@creator', creatorName: 'Creator', url: '/watch?v=a', thumbnail: 'https://i.ytimg.com/vi/a/hqdefault.jpg', metadata: ['123K views', '2 days ago'] };
+  const video = { id: 'a', title: 'A video', creatorId: '@creator', creatorName: 'Creator', url: '/watch?v=a' };
   let saved;
   let toggled = false;
   let rejectSave = false;

@@ -7,6 +7,7 @@ import { NativeCards } from './native-cards';
 import { styles, nativeStyles } from './styles';
 
 const STORAGE_KEY = 'subscriptionGroupsSettings';
+const SUBSCRIPTIONS_PATH = '/feed/subscriptions';
 let settings: Settings = createDefaultSettings();
 let ready = false;
 let original = false;
@@ -50,8 +51,9 @@ function dismiss(): void {
   editor = null;
   render();
   requestAnimationFrame(() => {
-    if (trigger?.isConnected) trigger.focus();
-    else host?.shadowRoot?.querySelector<HTMLButtonElement>('header button')?.focus();
+    // A saved card may now sit in a collapsed section, where it cannot take focus.
+    const target = trigger && nativeCards?.focusTarget(trigger);
+    (target ?? host?.shadowRoot?.querySelector<HTMLButtonElement>('header button'))?.focus();
   });
 }
 
@@ -64,7 +66,7 @@ function render(): void {
 
 function updateFeed(): void {
   if (!ready) return;
-  if (location.pathname !== '/feed/subscriptions') {
+  if (location.pathname !== SUBSCRIPTIONS_PATH) {
     expandedSections.clear();
     visibleLimits.clear();
     unmount();
@@ -103,12 +105,14 @@ function updateFeed(): void {
 
 function refresh(): void {
   // Ignore our own layout updates, but continue observing YouTube's later updates.
+  // Other pages rely on navigation events alone, so their DOM churn (such as the
+  // player's time display) never schedules work.
   observer.disconnect();
   try { updateFeed(); }
   catch (error) {
     unmount();
     console.error('[YouTube Subscription Groups] Restored original cards after an integration error.', error);
-  } finally { observe(); }
+  } finally { if (location.pathname === SUBSCRIPTIONS_PATH) observe(); }
 }
 
 function schedule(): void {
@@ -121,7 +125,6 @@ function observe(): void {
   observer.observe(document.body, { childList: true, subtree: true, characterData: true,
     attributes: true, attributeFilter: ['href', 'src', 'hidden'] });
 }
-observe();
 document.addEventListener('yt-navigate-finish', schedule);
 window.addEventListener('popstate', schedule);
 chrome.storage.onChanged.addListener((changes, area) => {

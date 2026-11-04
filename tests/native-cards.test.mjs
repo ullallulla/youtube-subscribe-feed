@@ -261,3 +261,32 @@ test('late recommendation headings remove a card from grouping without moving it
   manager.restore();
   assert.equal(source.querySelector('[data-native-group-excluded]'), null);
 }));
+
+test('a Shorts shelf with its own continuation keeps its native layout when expanded', () => fixture(`
+  <ytd-rich-section-renderer id="shorts"><ytd-rich-shelf-renderer is-shorts><h2 id="shelf-title">Shorts</h2><div id="shelf-items"><ytm-shorts-lockup-view-model><a href="/shorts/s1" aria-label="Short">Short</a></ytm-shorts-lockup-view-model><ytd-continuation-item-renderer id="shelf-continuation"></ytd-continuation-item-renderer></div></ytd-rich-shelf-renderer></ytd-rich-section-renderer>`, ({ manager, source, settings, toggle, display }) => {
+  const shelf = source.querySelector('#shorts');
+  manager.sync(settings);
+  toggle('Shorts').click();
+  assert.ok(!['none', 'contents'].includes(display(shelf)));
+  assert.notEqual(display(source.querySelector('#shelf-title')), 'none');
+  assert.equal(source.querySelector('[data-native-shorts-shelf] [data-native-flat]'), null);
+  assert.equal(shelf.hasAttribute('data-native-flat'), false);
+  // The feed's own continuation still gets a layout path for explicit loads.
+  const continuation = source.querySelector(':scope > ytd-continuation-item-renderer');
+  continuation.scrollIntoView = () => {};
+  manager.container.querySelector('.native-group-footer button').click();
+  assert.equal(continuation.hasAttribute('data-native-load-control'), true);
+}));
+
+test('focus returns to the trigger, or to its new section when the card is collapsed', () => fixture(markup('a') + markup('b', 'beta'), ({ manager, source, settings, toggle }) => {
+  manager.sync(settings);
+  toggle('Other').click();
+  const trigger = source.querySelector('#b .native-group-category');
+  assert.equal(manager.focusTarget(trigger), trigger);
+  settings.creatorAssignments['@beta'] = 'gaming';
+  manager.sync(settings);
+  assert.equal(manager.focusTarget(trigger), toggle('Gaming'));
+  toggle('Gaming').click();
+  assert.equal(manager.focusTarget(trigger), trigger);
+  assert.equal(manager.focusTarget(document.createElement('button')), null);
+}));
